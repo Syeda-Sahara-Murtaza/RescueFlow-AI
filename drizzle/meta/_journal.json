@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1790883908381,
+      "tag": "0000_opposite_doctor_faustus",
+      "breakpoints": true
+    }
+  ]
+}
