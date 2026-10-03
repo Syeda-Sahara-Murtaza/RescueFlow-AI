@@ -1,3 +1,4 @@
+```ts
 import vinext from "vinext";
 import { defineConfig } from "vite";
 import hostingConfig from "./.openai/hosting.json";
@@ -5,8 +6,12 @@ import { readExecutionProfile } from "./scripts/execution-profile.mjs";
 import { sites } from "./build/sites-vite-plugin";
 import { connectorPreview } from "./build/connector-preview-plugin.mjs";
 
+// ============================================================
+// CLOUDFLARE D1 DATABASE
+// ============================================================
+
 const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
-  "00000000-0000-4000-8000-000000000000";
+  "89657f71-c9a9-4645-9b14-043dc2211f83";
 
 const { d1, r2 } = hostingConfig;
 
@@ -16,16 +21,32 @@ const managedLinux = readExecutionProfile() === "managed-linux";
 
 const localBindingConfig = {
   main: "./build/sites-worker.ts",
+
   compatibility_flags: ["nodejs_compat"],
+
+  // ============================================================
+  // CLOUDFLARE D1
+  // ============================================================
+
   d1_databases: d1
     ? [
         {
+          // Your application uses env.DB
           binding: d1,
-          database_name: "site-creator-d1",
+
+          // Your actual Cloudflare D1 database name
+          database_name: "rescueflow-ai-db",
+
+          // Your actual Cloudflare D1 database ID
           database_id: SITE_CREATOR_PLACEHOLDER_DATABASE_ID,
         },
       ]
     : [],
+
+  // ============================================================
+  // CLOUDFLARE R2
+  // ============================================================
+
   r2_buckets: r2
     ? [
         {
@@ -41,8 +62,9 @@ export default defineConfig(async ({ command }) => {
   process.env.CLOUDFLARE_CF_FETCH_ENABLED ??= "false";
   process.env.WRANGLER_SEND_METRICS ??= "false";
 
-  // Keep Wrangler and Miniflare state project-local. These are non-secret tool
-  // settings; application environment belongs in ignored `.env*` files.
+  // Keep Wrangler and Miniflare state project-local.
+  // These are non-secret tool settings; application environment belongs
+  // in ignored .env* files.
   process.env.WRANGLER_WRITE_LOGS ??= "false";
   process.env.WRANGLER_LOG_PATH ??= ".wrangler/logs";
   process.env.WRANGLER_REGISTRY_PATH ??= ".wrangler/dev-registry";
@@ -54,21 +76,42 @@ export default defineConfig(async ({ command }) => {
   return {
     server: {
       ...(managedLinux
-        ? { host: "0.0.0.0", allowedHosts: ["terminal.local"] }
+        ? {
+            host: "0.0.0.0",
+            allowedHosts: ["terminal.local"],
+          }
         : {}),
+
       ...(isCodexSeatbeltSandbox
-        ? { watch: { useFsEvents: false, usePolling: true } }
+        ? {
+            watch: {
+              useFsEvents: false,
+              usePolling: true,
+            },
+          }
         : {}),
     },
+
     plugins: [
       vinext(),
-      sites({ mockAuth: !managedLinux }),
+
+      sites({
+        mockAuth: !managedLinux,
+      }),
+
       connectorPreview(),
+
       cloudflare({
-        viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
+        viteEnvironment: {
+          name: "rsc",
+          childEnvironments: ["ssr"],
+        },
+
         inspectorPort: false,
+
         config: {
           ...localBindingConfig,
+
           ...(command === "serve"
             ? {
                 services: [
@@ -81,6 +124,7 @@ export default defineConfig(async ({ command }) => {
               }
             : {}),
         },
+
         ...(command === "serve"
           ? {
               auxiliaryWorkers: [
@@ -98,3 +142,4 @@ export default defineConfig(async ({ command }) => {
     ],
   };
 });
+```
