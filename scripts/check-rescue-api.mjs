@@ -4,6 +4,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import ts from 'typescript';
 const dir=await mkdtemp(join(tmpdir(),'rescueflow-api-'));
+const vercelAdapter=process.argv.includes('--vercel-adapter');
 try{
   await symlink(new URL('../node_modules',import.meta.url).pathname,join(dir,'node_modules'));
   for(const name of ['model','user-analysis','ai-service','engine','openai.server','geocoding.server','map-data']){
@@ -16,6 +17,24 @@ const db=new DatabaseSync(':memory:');
 db.exec('CREATE TABLE demo_sessions (id TEXT PRIMARY KEY, state TEXT NOT NULL, revision INTEGER NOT NULL, updated_at TEXT NOT NULL)');
 export function database(){return {prepare(sql){return {bind(...args){return {async first(){return db.prepare(sql).get(...args)},async run(){const r=db.prepare(sql).run(...args);return {meta:{changes:Number(r.changes)}}}}}}}}}
 `);
+  if(vercelAdapter){
+    const adapter=await readFile(new URL('../lib/deployment/d1-http.server.ts',import.meta.url),'utf8');
+    await writeFile(join(dir,'d1-http.mjs'),ts.transpileModule(adapter,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText);
+    await writeFile(join(dir,'storage.mjs'),`import {DatabaseSync} from 'node:sqlite';
+import {createD1HttpDatabase} from './d1-http.mjs';
+export const env={};
+const sqlDb=new DatabaseSync(':memory:');
+sqlDb.exec('CREATE TABLE demo_sessions (id TEXT PRIMARY KEY, state TEXT NOT NULL, revision INTEGER NOT NULL, updated_at TEXT NOT NULL)');
+const httpDb=createD1HttpDatabase(()=>({accountId:'a'.repeat(32),databaseId:'00000000-0000-4000-8000-000000000001',apiToken:'test-only-token'}),async(url,options)=>{
+  const {sql,params}=JSON.parse(options.body);
+  const statement=sqlDb.prepare(sql);
+  const rows=/^SELECT/i.test(sql)?statement.all(...params):[];
+  const changes=/^SELECT/i.test(sql)?0:Number(statement.run(...params).changes);
+  return Response.json({success:true,result:[{success:true,results:rows,meta:{changes}}]});
+});
+export function database(){return httpDb;}
+`);
+  }
   const source=await readFile(new URL('../app/api/state/route.ts',import.meta.url),'utf8');
   const route=ts.transpileModule(source.replace("'cloudflare:workers'","'./storage'"),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText.replace(/'@\/lib\/rescue\/([^']+)'/g,"'./$1.mjs'").replace("'./storage'","'./storage.mjs'");
   await writeFile(join(dir,'route.mjs'),route);
@@ -84,5 +103,5 @@ export function database(){return {prepare(sql){return {bind(...args){return {as
   res=await post({type:'analyze',requestId:crypto.randomUUID(),reportText:lahoreEmergency,city:'',country:'Pakistan'});assert.equal(res.status,400);
   globalThis.fetch=nativeFetch;
 
-  console.log(`PASS: ${liveGeocoding?'LIVE':'fixture'} city/country geocoding, exact Lahore emergency, persisted coordinates and report, three markers including two in Lahore, isolated reports, latest map target, invalid location rejected without mutation, plus HTTP/SQLite persistence, approval gates, concurrency, shared simulation and mission tracking.`);
+  console.log(`PASS: ${vercelAdapter?'Vercel D1 HTTP adapter':'native D1 interface'}; ${liveGeocoding?'LIVE':'fixture'} city/country geocoding, exact Lahore emergency, persisted coordinates and report, three markers including two in Lahore, isolated reports, latest map target, invalid location rejected without mutation, plus HTTP/SQLite persistence, approval gates, concurrency, shared simulation and mission tracking.`);
 }finally{await rm(dir,{recursive:true,force:true})}

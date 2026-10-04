@@ -1,4 +1,11 @@
-# vinext-starter
+# RescueFlow AI
+
+AI-assisted emergency response coordination. See [DEPLOYMENT.md](./DEPLOYMENT.md)
+for this repository's Cloudflare Workers and Vercel deployment settings.
+
+The application runs on Vinext with a native D1 binding on Cloudflare, or on
+Next.js with a server-side D1 API adapter on Vercel. The remaining notes describe
+the original ChatGPT Sites starter and its local tooling.
 
 A clean full-stack starter running on [vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and Drizzle support.
 
@@ -15,7 +22,8 @@ The Sites initializer copies the shared starter and selects managed-linux only w
 
 Run `node <plugin-root>/scripts/configure-execution-profile.mjs` only when the profile is unknown for the current checkout and environment. Profile changes do not alter tracked source or require reinstalling otherwise-valid dependencies; restart an existing preview to use the new selection. Do not commit or upload `.sites-runtime/`.
 
-This starter does not use `wrangler.jsonc`.
+This exported repository uses `wrangler.jsonc` for the Cloudflare Worker name,
+runtime compatibility, D1 database binding, and migration directory.
 
 `install:ci` runs `npm ci` once against the shared lockfile, disables parent-workspace discovery, and includes required dev/optional dependencies despite production/omit settings. Sharp defaults to prebuilt binaries unless explicitly configured otherwise. Do not overlap installers.
 

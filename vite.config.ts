@@ -1,61 +1,12 @@
-```ts
 import vinext from "vinext";
 import { defineConfig } from "vite";
-import hostingConfig from "./.openai/hosting.json";
 import { readExecutionProfile } from "./scripts/execution-profile.mjs";
 import { sites } from "./build/sites-vite-plugin";
 import { connectorPreview } from "./build/connector-preview-plugin.mjs";
 
-// ============================================================
-// CLOUDFLARE D1 DATABASE
-// ============================================================
-
-const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
-  "89657f71-c9a9-4645-9b14-043dc2211f83";
-
-const { d1, r2 } = hostingConfig;
-
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 const managedLinux = readExecutionProfile() === "managed-linux";
-
-const localBindingConfig = {
-  main: "./build/sites-worker.ts",
-
-  compatibility_flags: ["nodejs_compat"],
-
-  // ============================================================
-  // CLOUDFLARE D1
-  // ============================================================
-
-  d1_databases: d1
-    ? [
-        {
-          // Your application uses env.DB
-          binding: d1,
-
-          // Your actual Cloudflare D1 database name
-          database_name: "rescueflow-ai-db",
-
-          // Your actual Cloudflare D1 database ID
-          database_id: SITE_CREATOR_PLACEHOLDER_DATABASE_ID,
-        },
-      ]
-    : [],
-
-  // ============================================================
-  // CLOUDFLARE R2
-  // ============================================================
-
-  r2_buckets: r2
-    ? [
-        {
-          binding: r2,
-          bucket_name: "site-creator-r2",
-        },
-      ]
-    : [],
-};
 
 export default defineConfig(async ({ command }) => {
   // Use Miniflare's local Request.cf placeholder unless fetching is requested.
@@ -102,6 +53,8 @@ export default defineConfig(async ({ command }) => {
       connectorPreview(),
 
       cloudflare({
+        // Share the production Worker and D1 settings with Wrangler's CLI.
+        configPath: "./wrangler.jsonc",
         viteEnvironment: {
           name: "rsc",
           childEnvironments: ["ssr"],
@@ -110,8 +63,6 @@ export default defineConfig(async ({ command }) => {
         inspectorPort: false,
 
         config: {
-          ...localBindingConfig,
-
           ...(command === "serve"
             ? {
                 services: [
@@ -142,4 +93,3 @@ export default defineConfig(async ({ command }) => {
     ],
   };
 });
-```

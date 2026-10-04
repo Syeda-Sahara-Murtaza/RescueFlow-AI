@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "rescueflow-ai",
+  "main": "./build/sites-worker.ts",
+  "compatibility_date": "2026-05-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "rescueflow-ai-db",
+      "database_id": "89657f71-c9a9-4645-9b14-043dc2211f83",
+      "migrations_dir": "drizzle"
+    }
+  ]
+}
